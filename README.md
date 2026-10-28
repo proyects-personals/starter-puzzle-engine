@@ -20,6 +20,27 @@ npm run dev
 
 Variables opcionales: `PORT` (por defecto 3000) y `HOST` (por defecto 127.0.0.1).
 
+## 🚀 Publicar en Netlify (sin servidor)
+
+La versión estática funciona **100% en el navegador**: un Service Worker
+(`public/sw.js`) implementa la misma API REST usando IndexedDB (rompecabezas,
+imágenes, progreso y ajustes). No necesita backend.
+
+```bash
+npm run build      # genera dist/ (app + SW + manifest PWA + _headers/_redirects)
+npm run preview    # prueba el build en http://localhost:4173
+```
+
+Opciones para desplegar:
+
+1. **Drag & Drop**: arrastra la carpeta `dist/` a <https://app.netlify.com/drop>.
+2. **Desde Git**: conecta el repositorio en Netlify — `netlify.toml` ya define
+   el comando `npm run build` y el directorio `dist`.
+
+> Nota: en el build estático los datos viven en el dispositivo del usuario
+> (IndexedDB). Para compartir progreso entre dispositivos usa la versión con
+> Node.js (`npm start`).
+
 ## Funciones
 
 - **Biblioteca** con tarjetas, miniaturas, búsqueda en vivo, progreso y tiempo jugado.
@@ -41,15 +62,21 @@ src/
   puzzle-engine.js         Cuadrícula y dispersión de piezas
 public/
   index.html               Interfaz única con vistas
+  sw.js                    Service Worker: API virtual sobre IndexedDB (build estático)
   css/styles.css           Tema oscuro moderno
   js/
     app.js                 Núcleo, navegación, atajos, toasts
     library.js             Biblioteca
     settings.js            Configuración general
+    cookies.js             Consentimiento de cookies y preferencias
     puzzle-modal.js        Crear / configurar
     puzzle.js              Tablero interactivo
     puzzle-engine.js       Motor compartido (navegador)
-data/                      Base de datos e imágenes (se crea sola)
+scripts/
+  build-static.js          Genera dist/ para Netlify
+  preview-static.js        Sirve dist/ en localhost para probar
+netlify.toml               Configuración de build para Netlify
+data/                      Base de datos e imágenes (se crea sola, solo en Node)
 ```
 
 ## API
