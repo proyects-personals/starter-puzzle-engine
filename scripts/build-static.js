@@ -77,6 +77,20 @@ const swRegisterScript = `
       };
     })();
   </script>
+  <!-- Ocultar el banner "Powered by Netlify" que tapa la UI en móvil -->
+  <style>
+    netlify-widget, #netlify-widget { display: none !important; }
+  </style>
+  <script>
+    (function () {
+      var SELECTOR = 'netlify-widget, #netlify-widget, [data-netlify-badge], a[href*="netlify.com"]';
+      var remove = function () {
+        document.querySelectorAll(SELECTOR).forEach(function (el) { el.remove(); });
+      };
+      remove();
+      new MutationObserver(remove).observe(document.documentElement, { childList: true, subtree: true });
+    })();
+  </script>
   <link rel="manifest" href="/manifest.webmanifest">
 `;
 

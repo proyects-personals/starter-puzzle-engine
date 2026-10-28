@@ -136,8 +136,14 @@ class PuzzleRepository {
       );
   }
 
-  updateConfiguration(puzzleId, { title, imagePath, totalPieces, referenceWidth, boardRatio }) {
+  updateConfiguration(puzzleId, { title, imagePath, totalPieces, referenceWidth, boardRatio, resetProgress = true }) {
     const now = new Date().toISOString();
+
+    /* Cambiar la imagen invalida el progreso (otra cuadrícula);
+       cambiar solo título/proporciones lo conserva. */
+    const progressReset = resetProgress
+      ? "placed_pieces = '[]', piece_positions = '{}', completed = 0,"
+      : '';
 
     this.connection
       .prepare(
@@ -147,9 +153,7 @@ class PuzzleRepository {
              total_pieces = ?,
              reference_width = ?,
              board_ratio = ?,
-             placed_pieces = '[]',
-             piece_positions = '{}',
-             completed = 0,
+             ${progressReset}
              updated_at = ?
          WHERE id = ?`,
       )

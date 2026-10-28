@@ -12,7 +12,8 @@ const PuzzleView = {
   tileWidth: 1,
   tileHeight: 1,
   board: { x: 0, y: 0, width: 1, height: 1 },
-  positions: {},
+  currentPositions: {},
+  normalizedRestore: null,
   placed: new Set(),
   dragging: null,
   dragOffset: { x: 0, y: 0 },
@@ -97,15 +98,23 @@ const PuzzleView = {
     this.columns = columns;
     this.rows = rows;
     this.placed = new Set(this.puzzle.placedPieces);
-    this.positions = {};
-
-    for (const [key, value] of Object.entries(this.puzzle.piecePositions)) {
-      this.positions[Number(key)] = value;
-    }
 
     this.completed = this.placed.size === total;
     this.sessionSeconds = 0;
     this.currentPositions = {};
+
+    /* Restaurar las posiciones guardadas de piezas sueltas (autoguardado).
+       Vienen normalizadas [0..1]; se convierten a píxeles en el primer render. */
+    this.normalizedRestore = new Set();
+
+    for (const [key, value] of Object.entries(this.puzzle.piecePositions)) {
+      const index = Number(key);
+
+      if (!this.placed.has(index)) {
+        this.currentPositions[index] = [value[0], value[1]];
+        this.normalizedRestore.add(index);
+      }
+    }
 
     document.getElementById('puzzle-title').textContent = this.puzzle.title;
     document.getElementById('reference-image').src = `/images/${encodeURIComponent(this.puzzle.imagePath)}`;
@@ -224,6 +233,23 @@ const PuzzleView = {
           placed: true,
         });
       } else {
+        /* Si la pieza ya tiene posición calculada, conservarla: solo se
+           dispersan las piezas nuevas (sin posición). Así las demás no
+           "bailan" en cada render mientras arrastras o colocas piezas. */
+        const existing = this.currentPositions[index];
+
+        if (existing) {
+          /* Posición restaurada del autoguardado (normalizada 0..1) */
+          if (this.normalizedRestore?.has(index)) {
+            this.normalizedRestore.delete(index);
+            existing[0] = Math.round(existing[0] * areaWidth);
+            existing[1] = Math.round(existing[1] * areaHeight);
+          }
+
+          pieces.push({ index, x: existing[0], y: existing[1], placed: false });
+          continue;
+        }
+
         const [x, y] = this.piecePosition(index, areaWidth, areaHeight);
         this.currentPositions[index] = [x, y];
         pieces.push({ index, x, y, placed: false });
@@ -278,31 +304,12 @@ const PuzzleView = {
     return Math.max(0.4, Math.min(Number.isFinite(raw) ? raw : 0.72, 0.9));
   },
 
+  /* Dispersa una pieza nueva en un borde libre del área de juego */
   piecePosition(index, areaWidth, areaHeight) {
-    const saved = this.positions[index];
-
-    if (saved) {
-      const x = Math.round(saved[0] * areaWidth);
-      const y = Math.round(saved[1] * areaHeight);
-      const insideBoard =
-        x >= this.board.x - this.tileWidth / 2 &&
-        x < this.board.x + this.board.width - this.tileWidth / 2 &&
-        y >= this.board.y - this.tileHeight / 2 &&
-        y < this.board.y + this.board.height - this.tileHeight / 2;
-
-      if (!insideBoard) {
-        return this.clampPiece(x, y, areaWidth, areaHeight);
-      }
-
-      delete this.positions[index];
-    }
-
-    const [x, y] = PuzzleEngine.scatterPosition(areaWidth, areaHeight, this.board, {
+    return PuzzleEngine.scatterPosition(areaWidth, areaHeight, this.board, {
       width: this.tileWidth,
       height: this.tileHeight,
     });
-
-    return [x, y];
   },
 
   clampPiece(x, y, areaWidth, areaHeight) {
@@ -405,17 +412,12 @@ const PuzzleView = {
     if (Math.abs(currentX - targetX) <= threshold && Math.abs(currentY - targetY) <= threshold) {
       this.currentPositions[index] = [targetX, targetY];
       this.placed.add(index);
-      delete this.positions[index];
       this.updateProgress();
       this.saveProgress();
 
       if (this.placed.size === this.puzzle.totalPieces) {
         this.completePuzzle();
       }
-    } else {
-      const areaWidth = this.canvas.parentElement.clientWidth;
-      const areaHeight = this.canvas.parentElement.clientHeight;
-      this.positions[index] = [currentX / areaWidth, currentY / areaHeight];
     }
 
     this.saveProgress();
@@ -443,10 +445,6 @@ const PuzzleView = {
     const areaWidth = Math.max(this.canvas.parentElement.clientWidth, 1);
     const areaHeight = Math.max(this.canvas.parentElement.clientHeight, 1);
     const serialized = {};
-
-    for (const [index, position] of Object.entries(this.positions)) {
-      serialized[index] = position;
-    }
 
     for (let index = 0; index < this.puzzle.totalPieces; index += 1) {
       if (this.placed.has(index) || this.currentPositions?.[index] === undefined) {
@@ -621,9 +619,9 @@ const PuzzleView = {
     }
 
     this.placed.clear();
-    this.positions = {};
     this.completed = false;
     this.currentPositions = {};
+    this.normalizedRestore = new Set();
     this.sessionSeconds = 0;
     this.startTimer();
     this.render();

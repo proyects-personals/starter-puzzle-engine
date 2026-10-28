@@ -242,11 +242,6 @@ async function handleApi(request, response, url) {
     }
 
     const body = parseJsonBody(await readBody(request));
-
-    if (!body || typeof body.imageData !== 'string' || !body.imageData.startsWith('data:image/')) {
-      return sendJson(response, 400, { error: 'Debes seleccionar una imagen válida.' });
-    }
-
     const maxPieces = repository.getMaxPieces();
     const { errors, title, totalPieces, referenceWidth, boardRatio } = validatePuzzleInput(body, maxPieces);
 
@@ -254,30 +249,41 @@ async function handleApi(request, response, url) {
       return sendJson(response, 400, { error: errors.join(' ') });
     }
 
-    const match = /^data:image\/(png|jpe?g|webp|gif|bmp);base64,(.+)$/s.exec(body.imageData);
+    /* La imagen es opcional al reconfigurar: si no viene una nueva,
+       se conserva la actual y NO se reinicia el progreso. */
+    let imagePath = puzzle.imagePath;
+    let imageChanged = false;
 
-    if (!match) {
-      return sendJson(response, 400, { error: 'Formato de imagen no soportado.' });
+    if (typeof body?.imageData === 'string' && body.imageData.startsWith('data:image/')) {
+      const match = /^data:image\/(png|jpe?g|webp|gif|bmp);base64,(.+)$/s.exec(body.imageData);
+
+      if (!match) {
+        return sendJson(response, 400, { error: 'Formato de imagen no soportado.' });
+      }
+
+      const extension = match[1] === 'jpeg' ? 'jpg' : match[1];
+      imagePath = `${crypto.randomUUID()}.${extension}`;
+
+      fs.writeFileSync(path.join(IMAGES_DIR, imagePath), Buffer.from(match[2], 'base64'));
+      imageChanged = true;
     }
-
-    const extension = match[1] === 'jpeg' ? 'jpg' : match[1];
-    const fileName = `${crypto.randomUUID()}.${extension}`;
-
-    fs.writeFileSync(path.join(IMAGES_DIR, fileName), Buffer.from(match[2], 'base64'));
 
     const oldPath = path.join(IMAGES_DIR, path.basename(puzzle.imagePath));
 
     repository.updateConfiguration(puzzleId, {
       title,
-      imagePath: fileName,
+      imagePath,
       totalPieces,
       referenceWidth,
       boardRatio,
+      resetProgress: imageChanged,
     });
 
-    fs.rm(oldPath, { force: true }, () => {});
+    if (imageChanged) {
+      fs.rm(oldPath, { force: true }, () => {});
+    }
 
-    return sendJson(response, 200, { ok: true });
+    return sendJson(response, 200, { ok: true, imageChanged });
   }
 
   const progressMatch = pathname.match(/^\/api\/puzzles\/(\d+)\/progress$/);

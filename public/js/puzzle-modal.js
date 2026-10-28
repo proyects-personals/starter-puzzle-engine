@@ -179,18 +179,21 @@ const PuzzleModal = {
       return;
     }
 
-    if (this.mode === 'create' && !this.imageData) {
-      App.toast('Selecciona una imagen', 'warning');
-      return;
-    }
-
     const payload = {
       title,
       totalPieces: Number(this.piecesInput.value),
       referenceWidth: Number(this.referenceInput.value),
       boardRatio: Number(this.ratioInput.value),
-      imageData: this.imageData || 'data:image/png;base64,x',
     };
+
+    /* En creación la imagen es obligatoria; en edición, opcional
+       (si no se elige una nueva se conserva la actual). */
+    if (this.imageData) {
+      payload.imageData = this.imageData;
+    } else if (this.mode === 'create') {
+      App.toast('Selecciona una imagen', 'warning');
+      return;
+    }
 
     try {
       this.saveButton.disabled = true;

@@ -7,7 +7,7 @@
    navegador: sin servidor, sin base de datos remota.
    ============================================================ */
 
-const CACHE_VERSION = 'puzzlestudio-v1';
+const CACHE_VERSION = 'puzzlestudio-v2';
 const DB_NAME = 'puzzlestudio';
 const DB_VERSION = 1;
 
@@ -288,11 +288,6 @@ async function handleApi(request, pathname) {
     }
 
     const body = await readJson(request);
-
-    if (!body || typeof body.imageData !== 'string' || !body.imageData.startsWith('data:image/')) {
-      return jsonResponse({ error: 'Debes seleccionar una imagen válida.' }, 400);
-    }
-
     const maxPieces = Number(await dbGetSetting('max_pieces', DEFAULT_MAX_PIECES));
     const { errors, title, totalPieces, referenceWidth, boardRatio } = validatePuzzleInput(body, maxPieces);
 
@@ -300,30 +295,42 @@ async function handleApi(request, pathname) {
       return jsonResponse({ error: errors.join(' ') }, 400);
     }
 
-    const image = saveDataUrlAsImage(body.imageData);
+    /* La imagen es opcional al reconfigurar: si no viene una nueva,
+       se conserva la actual y NO se reinicia el progreso. */
+    let imagePath = puzzle.imagePath;
+    let imageChanged = false;
 
-    if (!image) {
-      return jsonResponse({ error: 'Formato de imagen no soportado.' }, 400);
+    if (typeof body?.imageData === 'string' && body.imageData.startsWith('data:image/')) {
+      const image = saveDataUrlAsImage(body.imageData);
+
+      if (!image) {
+        return jsonResponse({ error: 'Formato de imagen no soportado.' }, 400);
+      }
+
+      await dbSetImage(image.fileName, image.bytes);
+      await dbDeleteImage(puzzle.imagePath);
+      imagePath = image.fileName;
+      imageChanged = true;
     }
-
-    await dbSetImage(image.fileName, image.bytes);
-    await dbDeleteImage(puzzle.imagePath);
 
     Object.assign(puzzle, {
       title,
-      imagePath: image.fileName,
+      imagePath,
       totalPieces,
       referenceWidth,
       boardRatio,
-      placedPieces: [],
-      piecePositions: {},
-      completed: false,
       updatedAt: new Date().toISOString(),
     });
 
+    if (imageChanged) {
+      puzzle.placedPieces = [];
+      puzzle.piecePositions = {};
+      puzzle.completed = false;
+    }
+
     await dbPutPuzzle(puzzle);
 
-    return jsonResponse({ ok: true });
+    return jsonResponse({ ok: true, imageChanged });
   }
 
   const progressMatch = pathname.match(/^\/api\/puzzles\/(\d+)\/progress$/);
