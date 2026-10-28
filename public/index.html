@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>PuzzleStudio — Rompecabezas en la web</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧩</text></svg>">
+</head>
+<body>
+  <div id="app">
+    <!-- ============ VISTA: BIBLIOTECA ============ -->
+    <section id="view-library" class="view active">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-icon">🧩</span>
+          <div>
+            <h1>PuzzleStudio</h1>
+            <p>Tus rompecabezas, en la web</p>
+          </div>
+        </div>
+        <nav class="topbar-nav">
+          <button class="nav-btn active" data-view="library">📚 Biblioteca</button>
+          <button class="nav-btn" data-view="settings">⚙️ Configuración</button>
+        </nav>
+      </header>
+
+      <div class="library-content">
+        <div class="library-header">
+          <div>
+            <h2>Biblioteca</h2>
+            <p class="muted" id="library-count">Cargando…</p>
+          </div>
+          <div class="library-actions">
+            <input type="search" id="library-search" class="search-input" placeholder="🔍 Buscar rompecabezas…">
+            <button class="btn btn-primary" id="btn-new-puzzle">＋ Nuevo rompecabezas</button>
+          </div>
+        </div>
+
+        <div id="library-grid" class="puzzle-grid"></div>
+
+        <div id="library-empty" class="empty-state hidden">
+          <div class="empty-icon">🧩</div>
+          <h3>No hay rompecabezas todavía</h3>
+          <p class="muted">Crea tu primer rompecabezas con cualquier imagen de tu equipo.</p>
+          <button class="btn btn-primary btn-lg" id="btn-empty-new">＋ Crear mi primer rompecabezas</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VISTA: CONFIGURACIÓN ============ -->
+    <section id="view-settings" class="view">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-icon">🧩</span>
+
+          <div>
+            <h1>PuzzleStudio</h1>
+            <p>Preferencias generales</p>
+          </div>
+        </div>
+        <nav class="topbar-nav">
+          <button class="nav-btn" data-view="library">📚 Biblioteca</button>
+          <button class="nav-btn active" data-view="settings">⚙️ Configuración</button>
+        </nav>
+      </header>
+
+      <div class="settings-content">
+        <div class="card">
+          <h3>Límite general de piezas</h3>
+          <p class="muted">Número máximo de piezas permitido para una partida.</p>
+          <div class="form-row">
+            <input type="number" id="settings-max-pieces" min="2" max="1000" class="input">
+            <button class="btn btn-primary" id="btn-save-max">Guardar límite</button>
+          </div>
+          <p id="settings-feedback" class="feedback hidden"></p>
+        </div>
+
+        <div class="card">
+          <h3>Atajos de teclado</h3>
+          <ul class="shortcut-list">
+            <li><kbd>F1</kbd> Mostrar pista</li>
+            <li><kbd>F2</kbd> Alternar vista fantasma</li>
+            <li><kbd>Esc</kbd> Volver a la biblioteca</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3>🍪 Cookies y permisos</h3>
+          <p class="muted">
+            Estado actual: <strong id="consent-status">—</strong>. Usamos únicamente almacenamiento
+            técnico (localStorage) para recordar tus preferencias. Puedes cambiar tu decisión cuando
+            quieras. No hay cookies de terceros ni analítica.
+          </p>
+          <div class="consent-toggles">
+            <label class="consent-toggle">
+              <input type="checkbox" id="consent-preferences">
+              <span>Preferencias (fantasma, referencia, vista)</span>
+            </label>
+          </div>
+          <div class="form-row">
+            <button class="btn btn-primary" id="btn-save-consent">Guardar preferencias</button>
+            <button class="btn btn-ghost" id="btn-revoke-consent">Revocar consentimiento</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VISTA: JUEGO ============ -->
+    <section id="view-puzzle" class="view">
+      <header class="puzzle-topbar">
+        <button class="btn btn-ghost" id="btn-back">← Biblioteca</button>
+        <h2 id="puzzle-title" class="puzzle-title">Rompecabezas</h2>
+        <div class="puzzle-stats">
+          <span class="stat-chip" id="stat-timer">⏱ 00:00</span>
+          <span class="stat-chip" id="stat-progress">0 / 0</span>
+        </div>
+        <div class="puzzle-actions">
+          <button class="btn btn-ghost btn-reference" id="btn-reference" title="Mostrar imagen de referencia">🖼 Referencia</button>
+          <button class="btn btn-ghost" id="btn-hint" title="F1">💡 Pista</button>
+          <button id="btn-ghost" class="btn btn-ghost" title="F2">👁 Fantasma: off</button>
+          <button class="btn btn-ghost" id="btn-rename">✏️ Renombrar</button>
+          <button class="btn btn-ghost" id="btn-export">💾 Imagen</button>
+          <button class="btn btn-ghost" id="btn-config">⚙️ Configurar</button>
+          <button class="btn btn-ghost" id="btn-shuffle">🔀 Mezclar</button>
+        </div>
+      </header>
+
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" id="progress-bar"></div>
+        <span class="progress-text" id="progress-text">0 de 0 pieces · 0%</span>
+      </div>
+
+      <div class="puzzle-stage">
+        <aside class="reference-panel" id="reference-panel">
+          <h4>Imagen de referencia</h4>
+          <div class="reference-image-wrap">
+            <img id="reference-image" alt="Referencia">
+          </div>
+          <div class="reference-meta">
+            <span id="reference-size" class="muted"></span>
+          </div>
+        </aside>
+
+        <main class="board-wrap">
+          <canvas id="board-canvas"></canvas>
+        </main>
+      </div>
+    </section>
+
+    <!-- ============ MODAL: CREAR / CONFIGURAR ============ -->
+    <div id="modal-overlay" class="modal-overlay hidden">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="modal-title">Nuevo rompecabezas</h3>
+          <button class="modal-close" id="modal-close">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="modal-columns">
+            <div class="modal-form">
+              <label class="field">
+                <span>Nombre</span>
+                <input type="text" id="puzzle-name" class="input" placeholder="Mi rompecabezas" maxlength="80">
+              </label>
+
+              <div class="field">
+                <span>Imagen</span>
+                <div class="image-picker">
+                  <label class="btn btn-primary image-btn" for="puzzle-image-input">📁 Elegir imagen</label>
+                  <input type="file" id="puzzle-image-input" accept="image/*" hidden>
+                  <span id="puzzle-image-name" class="muted">Sin imagen seleccionada</span>
+                </div>
+              </div>
+
+              <label class="field">
+                <span>Número de piezas: <strong id="pieces-value">36</strong></span>
+                <input type="range" id="puzzle-pieces" min="4" max="500" step="1" value="36">
+                <div class="range-marks"><span>4</span><span>100</span><span>250</span><span>500</span></div>
+              </label>
+
+              <label class="field">
+                <span>Ancho de referencia: <strong id="reference-value">300 px</strong></span>
+                <input type="range" id="puzzle-reference" min="180" max="500" step="10" value="300">
+              </label>
+
+              <label class="field">
+                <span>Proporción del tablero: <strong id="ratio-value">0.72</strong></span>
+                <input type="range" id="puzzle-ratio" min="0.55" max="0.90" step="0.01" value="0.72">
+              </label>
+            </div>
+
+            <div class="modal-preview">
+              <div class="preview-frame">
+                <img id="puzzle-preview" alt="Vista previa" class="hidden">
+                <div id="preview-placeholder" class="preview-placeholder">
+                  <span>🖼️</span>
+                  <p>La vista previa aparecerá aquí</p>
+                </div>
+              </div>
+              <div class="preview-grid-info" id="preview-grid-info"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-ghost" id="modal-cancel">Cancelar</button>
+          <button class="btn btn-success" id="modal-save">Crear rompecabezas</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ BANNER DE COOKIES / PERMISOS ============ -->
+    <div id="cookie-banner" class="cookie-banner hidden" role="dialog" aria-live="polite" aria-label="Aviso de cookies y permisos">
+      <div class="cookie-content">
+        <span class="cookie-icon" aria-hidden="true">🍪</span>
+        <div class="cookie-text">
+          <strong>Tu privacidad importa</strong>
+          <p>
+            Usamos <strong>localStorage</strong> (cookies técnicas) para recordar tus preferencias
+            (vista fantasma, referencia visible, consentimiento) y guardamos tu progreso en el
+            servidor. No usamos cookies publicitarias ni de terceros. La app puede solicitar
+            permisos del dispositivo (almacenamiento/cámara) solo si los usas.
+          </p>
+        </div>
+      </div>
+      <div class="cookie-actions">
+        <button class="btn btn-ghost" id="cookie-config">⚙️ Configurar</button>
+        <button class="btn btn-ghost" id="cookie-reject">Rechazar</button>
+        <button class="btn btn-primary" id="cookie-accept">Aceptar todo</button>
+      </div>
+    </div>
+
+    <!-- ============ TOASTS ============ -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- ============ CONFIRMACIÓN ============ -->
+    <div id="confirm-overlay" class="modal-overlay hidden">
+      <div class="modal modal-small">
+        <div class="modal-body">
+          <p id="confirm-message" style="margin:0 0 20px 0;"></p>
+          <div class="modal-footer" style="padding:0;">
+            <button class="btn btn-ghost" id="confirm-cancel">Cancelar</button>
+            <button class="btn btn-danger" id="confirm-ok">Confirmar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/puzzle-engine.js"></script>
+  <script src="/js/puzzle-modal.js"></script>
+  <script src="/js/cookies.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/library.js"></script>
+  <script src="/js/settings.js"></script>
+  <script src="/js/puzzle.js"></script>
+</body>
+</html>
